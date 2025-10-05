@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Learning Buddy</title>
+  <style>
+    body{font-family:system-ui;margin:24px;max-width:900px}
+    textarea{width:100%;height:100px}
+    button{padding:10px 16px;margin-top:10px;border-radius:8px;border:1px solid #ddd;cursor:pointer}
+    .card{border:1px solid #eee;border-radius:12px;padding:12px;margin:12px 0;background:#fafafa}
+  </style>
+</head>
+<body>
+  <h1>📘 Learning Buddy</h1>
+  <textarea id="msg" placeholder="Ask: 'Teach me SQL' or 'Roadmap for Python'"></textarea>
+  <br>
+  <button id="send">Send</button>
+  <div id="out"></div>
+
+<script>
+async function chat(message){
+  const r = await fetch("http://127.0.0.1:8000/api/learning", {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ message })
+  });
+  const data = await r.json();
+  console.log("Learning response:", data);
+
+  const replyText = data.reply ? data.reply.replace(/\n/g, "<br>") : "(no reply)";
+  const el = document.createElement("div");
+  el.className = "card";
+  el.innerHTML = `<b>Assistant:</b><br>${replyText}`;
+  document.getElementById("out").prepend(el);
+}
+
+document.getElementById("send").onclick = ()=>{
+  const m = document.getElementById("msg").value.trim();
+  if(m) chat(m);
+};
+</script>
+</body>
+</html>

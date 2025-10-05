@@ -1,4 +1,4 @@
-import os, sys, base64, requests, json
+import os, sys, requests, json
 from dotenv import load_dotenv
 from typing import Dict, Any
 from langgraph.graph import StateGraph, END
@@ -11,34 +11,31 @@ if not load_dotenv():
     print("⚠️ Warning: .env file not found", file=sys.stderr)
 
 # Ollama config (free local LLM)
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/chat")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 
 # ---- Ollama invoke ----
 def safe_llm_invoke(prompt: str) -> str:
     try:
         r = requests.post(
             OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": prompt},
+            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": True},
             stream=True,
-            timeout=60
+            timeout=120
         )
         text = ""
         for line in r.iter_lines():
-            if line:
-                try:
-                    data = json.loads(line.decode("utf-8"))
-                    if "response" in data:
-                        text += data["response"]
-                except Exception:
-                    continue
+            if not line:
+                continue
+            try:
+                data = json.loads(line.decode("utf-8"))
+                if "response" in data:
+                    text += data["response"]
+            except Exception:
+                continue
         return text.strip() or "⚠️ Ollama returned no output."
     except Exception as e:
         return f"⚠️ Ollama error: {str(e)}"
-
-# ---- Fake TTS (silence) ----
-def synthesize_audio(text: str) -> str:
-    return base64.b64encode(b"\x00" * 1024).decode("utf-8")
 
 # ---- Agent nodes ----
 def router(state: Dict[str, Any]):
@@ -66,26 +63,24 @@ def career_agent(state: Dict[str, Any]):
 
 def learning_agent(state: Dict[str, Any]):
     topic = state.get("message", "a topic")
-    path = generate_learning_path(topic)
-    quiz = quick_quiz(topic)
-    prompt = (
-        "You are a crisp learning mentor. Respond with: "
-        "1) mini roadmap 2) two quiz questions 3) one tiny project idea.\n"
-        f"Topic: {topic}\n"
-        f"Suggested roadmap: {path}\n"
-        f"Quiz bank: {quiz}\n"
+    mainSubject=safe_llm_invoke("Extract the main subject(s) of this request in 1-3 words max: {topic}")
+    prompt=safe_llm_invoke(mainSubject)
+    quiz = quick_quiz(prompt)
+
+    response = (
+        f"You are a crisp learning mentor. The user specifically asked about **{prompt}**.\n\n"
+        "Stick strictly to this subject. Do not switch to other domains.\n\n"
+        "Generate:\n"
+        f"1) A 5-day roadmap with concrete subtopics in {prompt}.\n"
+        f"2) Two quiz questions directly about {prompt}.\n"
+        f"3) One tiny project idea that uses {prompt}.\n\n"
+        f"Examples of quiz style: {quiz}\n"
     )
-    return {"reply": safe_llm_invoke(prompt)}
+    return {"reply": safe_llm_invoke(response)}
 
 def chitchat(state: Dict[str, Any]):
     msg = state.get("message", "")
     return {"reply": safe_llm_invoke(f"Answer briefly and helpfully: {msg}")}
-
-def tts_node(state: Dict[str, Any]):
-    text = state.get("reply", "")
-    if not text:
-        return {}
-    return {"audio_b64": synthesize_audio(text)}
 
 # ---- Build the graph ----
 def build_graph():
@@ -94,7 +89,6 @@ def build_graph():
     g.add_node("career", career_agent)
     g.add_node("learning", learning_agent)
     g.add_node("chat", chitchat)
-    g.add_node("tts", tts_node)
 
     g.set_entry_point("router")
 
@@ -107,10 +101,9 @@ def build_graph():
         return "chat"
 
     g.add_conditional_edges("router", route)
-    g.add_edge("career", "tts")
-    g.add_edge("learning", "tts")
-    g.add_edge("chat", "tts")
-    g.add_edge("tts", END)
+    g.add_edge("career", END)
+    g.add_edge("learning", END)
+    g.add_edge("chat", END)
 
     memory = MemorySaver()
     return g.compile(checkpointer=memory)
