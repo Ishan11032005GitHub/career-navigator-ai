@@ -8,10 +8,12 @@
     body {font-family: system-ui; margin: 0; background: #f9fafb;}
     #topbar {padding: 10px 16px; background: #0078ff; color: white; display: flex; justify-content: space-between; align-items: center;}
     textarea {width: 100%; margin: 8px 0; padding: 8px; border-radius: 8px; border: 1px solid #ccc;}
-    button {padding: 10px 16px; border-radius: 8px; border: none; background: #0078ff; color: white; cursor: pointer;}
-    .card {border: 1px solid #eee; border-radius: 12px; padding: 12px; margin: 12px; background: #fff;}
+    button {padding: 8px 14px; border-radius: 8px; border: none; background: #0078ff; color: white; cursor: pointer;}
+    .card {border: 1px solid #eee; border-radius: 12px; padding: 12px; margin: 12px; background: #fff; position: relative;}
     input[type="file"] {margin: 8px 0;}
     #upload-status {font-weight: bold; color: green;}
+    .delete-btn {position: absolute; top: 8px; right: 8px; background: none; border: none; color: #d00; font-size: 16px; cursor: pointer;}
+    #clear-all {background: #dc3545; margin: 8px 0;}
   </style>
 </head>
 <body>
@@ -24,9 +26,12 @@
     <label><b>📄 Upload your resume (PDF only):</b></label><br>
     <input type="file" id="resume" accept=".pdf"><br>
     <span id="upload-status"></span><br>
+
     <textarea id="msg" placeholder="Ask about jobs, e.g. 'Which roles suit me?'"></textarea>
     <br>
     <button id="send">Send</button>
+    <button id="clear-all">🗑 Clear All Chats</button>
+
     <div id="out"></div>
   </div>
 
@@ -37,9 +42,9 @@ if (!localStorage.getItem("token")) {
   window.location.href = "login.html";
 }
 
-let uploadedResume = null;
+let uploadedResume = localStorage.getItem("resume_path");
 
-// Upload resume to backend
+// Upload resume
 async function uploadResume(file) {
   const formData = new FormData();
   formData.append("resume", file);
@@ -52,62 +57,110 @@ async function uploadResume(file) {
   if (data.path) {
     uploadedResume = data.path;
     localStorage.setItem("resume_path", uploadedResume);
-  } else {
-    alert("Error uploading resume");
-  }
+    document.getElementById("upload-status").textContent = `✅ Uploaded: ${file.name}`;
+  } else alert("Error uploading resume");
 }
 
-// Chat with AI
+// Chat with AI and save
 async function chat(message) {
   if (!uploadedResume) {
-    alert("Please upload your resume PDF first.");
+    alert("Please upload your resume first.");
     return;
   }
-  const r = await fetch(`${API}/career`, {
-    method: 'POST',
+
+  const res = await fetch(`${API}/career`, {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem("token")}`
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${localStorage.getItem("token")}`
     },
     body: JSON.stringify({ message, resume_path: uploadedResume, job_posts: [] })
   });
-  const data = await r.json();
-  const el = document.createElement("div");
-  el.className = "card";
-  el.innerHTML = `<b>Assistant:</b><br>${(data.reply || '').replace(/\n/g, "<br>")}`;
-  document.getElementById("out").prepend(el);
+
+  const data = await res.json();
+  const reply = data.reply || "No response.";
+  renderChat({ id: Date.now(), message, reply });
+
+  await fetch(`${API}/chat/save`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${localStorage.getItem("token")}`
+    },
+    body: JSON.stringify({ message, reply })
+  });
 }
 
-// Handle file selection
+// Load history
+async function loadHistory() {
+  const res = await fetch(`${API}/chat/history`, {
+    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+  });
+  const data = await res.json();
+  const chats = data.history || [];
+  document.getElementById("out").innerHTML = "";
+  chats.forEach(renderChat);
+}
+
+// Render single chat
+function renderChat(chat) {
+  const div = document.createElement("div");
+  div.className = "card";
+  div.innerHTML = `
+    <button class="delete-btn" onclick="deleteChat(${chat.id}, this)">✖</button>
+    <b>You:</b> ${chat.message}<br><br>
+    <b>Assistant:</b><br>${chat.reply.replace(/\n/g, "<br>")}
+  `;
+  document.getElementById("out").prepend(div);
+}
+
+// Delete chat
+async function deleteChat(id, el) {
+  await fetch(`${API}/chat/delete/${id}`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+  });
+  el.parentElement.remove();
+}
+
+// Clear all chats
+async function clearAll() {
+  if (!confirm("Delete all chats?")) return;
+  await fetch(`${API}/chat/clear`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+  });
+  document.getElementById("out").innerHTML = "";
+}
+document.getElementById("clear-all").onclick = clearAll;
+
+// File upload listener
 document.getElementById("resume").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   if (!file.name.endsWith(".pdf")) {
     alert("Only PDF files allowed!");
-    e.target.value = "";
     return;
   }
-
   document.getElementById("upload-status").textContent = "⏳ Uploading...";
   await uploadResume(file);
-  document.getElementById("upload-status").textContent = `✅ Uploaded: ${file.name}`;
 });
-
-// Restore uploaded resume if available
-uploadedResume = localStorage.getItem("resume_path");
-if (uploadedResume) {
-  document.getElementById("upload-status").textContent = "✅ Resume already uploaded.";
-}
 
 document.getElementById("send").onclick = () => {
   const m = document.getElementById("msg").value.trim();
   if (m) chat(m);
 };
 
-function logout(){
+function logout() {
   localStorage.clear();
   window.location.href = "login.html";
 }
+
+// Init
+if (uploadedResume) {
+  document.getElementById("upload-status").textContent = "✅ Resume already uploaded.";
+}
+loadHistory();
 </script>
 </body>
 </html>

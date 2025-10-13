@@ -271,6 +271,75 @@ async def upload_resume(resume: UploadFile = File(...), user=Depends(verify_toke
 
 
 # ==========================================================
+# ---------------------- CHAT HISTORY ----------------------
+# ==========================================================
+@app.post("/api/chat/save")
+def save_chat(chat: dict, user=Depends(verify_token)):
+    """Save a chat message and reply."""
+    message = chat.get("message")
+    reply = chat.get("reply")
+    if not message or not reply:
+        raise HTTPException(status_code=400, detail="Missing chat data")
+
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id FROM users WHERE username=?", (user,))
+    user_row = cur.fetchone()
+    if not user_row:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_id = user_row["id"]
+
+    cur.execute("INSERT INTO chat_history (user_id, message, reply) VALUES (?, ?, ?)",
+                (user_id, message, reply))
+    conn.commit(); conn.close()
+    return {"msg": "Chat saved successfully"}
+
+
+@app.get("/api/chat/history")
+def get_chat_history(user=Depends(verify_token)):
+    """Get all chat history for logged-in user."""
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id FROM users WHERE username=?", (user,))
+    user_row = cur.fetchone()
+    if not user_row:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_id = user_row["id"]
+
+    cur.execute("SELECT id, message, reply, timestamp FROM chat_history WHERE user_id=? ORDER BY timestamp DESC", (user_id,))
+    rows = cur.fetchall(); conn.close()
+    return {"history": [dict(r) for r in rows]}
+
+
+@app.delete("/api/chat/delete/{chat_id}")
+def delete_chat(chat_id: int, user=Depends(verify_token)):
+    """Delete a specific chat by ID."""
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id FROM users WHERE username=?", (user,))
+    user_row = cur.fetchone()
+    if not user_row:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_id = user_row["id"]
+
+    cur.execute("DELETE FROM chat_history WHERE id=? AND user_id=?", (chat_id, user_id))
+    conn.commit(); conn.close()
+    return {"msg": "Chat deleted"}
+
+
+@app.delete("/api/chat/clear")
+def clear_chat_history(user=Depends(verify_token)):
+    """Delete all chats for logged-in user."""
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id FROM users WHERE username=?", (user,))
+    user_row = cur.fetchone()
+    if not user_row:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_id = user_row["id"]
+
+    cur.execute("DELETE FROM chat_history WHERE user_id=?", (user_id,))
+    conn.commit(); conn.close()
+    return {"msg": "All chat history cleared"}
+
+
+# ==========================================================
 # ---------------------- ROOT ------------------------------
 # ==========================================================
 @app.get("/")

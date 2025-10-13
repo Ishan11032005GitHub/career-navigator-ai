@@ -16,6 +16,17 @@ CREATE TABLE IF NOT EXISTS applications (
 );
 """)
 
+cur.execute("""
+CREATE TABLE IF NOT EXISTS chat_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    message TEXT,
+    reply TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+)
+""")
+
 conn.commit()
 conn.close()
 print("✅ 'applications' table created successfully!")
