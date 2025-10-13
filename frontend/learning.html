@@ -14,12 +14,21 @@
     #msg {flex: 1; resize: none; border-radius: 8px; border: 1px solid #ccc; padding: 10px;}
     button {margin-left: 8px; padding: 10px 18px; border-radius: 8px; border: none; background: #0078ff; color: white; cursor: pointer;}
     #topbar {padding: 10px 16px; background: #0078ff; color: white; display: flex; justify-content: space-between; align-items: center;}
+    .chat-item {background: #fff; border-radius: 8px; padding: 10px; margin: 8px 0; border: 1px solid #ddd; position: relative;}
+    .delete-btn {position: absolute; right: 10px; top: 10px; background: none; border: none; color: red; font-size: 16px; cursor: pointer;}
+    #history-controls {padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; background: #fff;}
+    #clear-btn {background: red; color: white; border-radius: 6px; padding: 6px 12px; cursor: pointer; border: none;}
   </style>
 </head>
 <body>
   <div id="topbar">
     <b>Learning Buddy</b>
     <button onclick="logout()">Logout</button>
+  </div>
+
+  <div id="history-controls">
+    <b>Chat History</b>
+    <button id="clear-btn">🗑️ Clear All</button>
   </div>
 
   <div id="chat-container"></div>
@@ -35,7 +44,7 @@ if (!localStorage.getItem("token")) {
   window.location.href = "login.html";
 }
 
-const API = "http://127.0.0.1:8000/api/learning";
+const API = "http://127.0.0.1:8000/api";
 const token = localStorage.getItem("token");
 const threadId = localStorage.getItem("learning_thread") || crypto.randomUUID();
 localStorage.setItem("learning_thread", threadId);
@@ -49,10 +58,38 @@ function appendMessage(text, cls) {
   chatContainer.prepend(el);
 }
 
+// =====================
+// Load Chat History
+// =====================
+async function loadHistory() {
+  try {
+    const res = await fetch(`${API}/chat/history`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const data = await res.json();
+    chatContainer.innerHTML = "";
+    (data.history || []).forEach(item => {
+      const div = document.createElement("div");
+      div.className = "chat-item";
+      div.innerHTML = `
+        <div><b>You:</b> ${item.message}</div>
+        <div><b>Assistant:</b> ${item.reply}</div>
+        <button class="delete-btn" onclick="deleteChat(${item.id})">✖</button>
+      `;
+      chatContainer.prepend(div);
+    });
+  } catch (e) {
+    console.error("Error loading history:", e);
+  }
+}
+
+// =====================
+// Send Chat
+// =====================
 async function chat(message) {
   appendMessage(message, "user");
   try {
-    const r = await fetch(API, {
+    const r = await fetch(`${API}/learning`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -62,11 +99,48 @@ async function chat(message) {
     });
     const data = await r.json();
     appendMessage(data.reply || "(no reply)", "bot");
+
+    // Save chat
+    await fetch(`${API}/chat/save`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ message, reply: data.reply })
+    });
   } catch (e) {
     appendMessage("⚠️ Network error: " + e.message, "bot");
   }
 }
 
+// =====================
+// Delete single chat
+// =====================
+async function deleteChat(id) {
+  if (!confirm("Delete this chat?")) return;
+  await fetch(`${API}/chat/delete/${id}`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  await loadHistory();
+}
+
+// =====================
+// Clear all chats
+// =====================
+document.getElementById("clear-btn").onclick = async () => {
+  if (!confirm("Delete all chat history?")) return;
+  await fetch(`${API}/chat/clear`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  await loadHistory();
+};
+
+// =====================
+// Send message handler
+// =====================
 document.getElementById("send").onclick = () => {
   const m = document.getElementById("msg").value.trim();
   if (m) {
@@ -79,6 +153,9 @@ function logout(){
   localStorage.clear();
   window.location.href = "login.html";
 }
+
+// Load on start
+loadHistory();
 </script>
 </body>
 </html>
