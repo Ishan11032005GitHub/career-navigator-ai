@@ -61,22 +61,34 @@ def career_agent(state: Dict[str, Any]):
     )
     return {"reply": safe_llm_invoke(prompt)}
 
-def learning_agent(state: Dict[str, Any]):
-    topic = state.get("message", "a topic")
-    mainSubject=safe_llm_invoke("Extract the main subject(s) of this request in 1-3 words max: {topic}")
-    prompt=safe_llm_invoke(mainSubject)
-    quiz = quick_quiz(prompt)
+memory_store = {}
 
-    response = (
-        f"You are a crisp learning mentor. The user specifically asked about **{prompt}**.\n\n"
-        "Stick strictly to this subject. Do not switch to other domains.\n\n"
-        "Generate:\n"
-        f"1) A 5-day roadmap with concrete subtopics in {prompt}.\n"
-        f"2) Two quiz questions directly about {prompt}.\n"
-        f"3) One tiny project idea that uses {prompt}.\n\n"
-        f"Examples of quiz style: {quiz}\n"
-    )
-    return {"reply": safe_llm_invoke(response)}
+def learning_agent(state: Dict[str, Any], thread_id: str = "default"):
+    topic = state.get("message", "a topic")
+
+    # Retrieve or create memory for this thread
+    history = memory_store.get(thread_id, [])
+    context_text = "\n".join(history[-3:])  # last 3 exchanges
+
+    # Build a contextual prompt
+    mainSubject = safe_llm_invoke(
+        f"Extract the main subject(s) of this request in 1–3 words max: {topic}"
+    ).strip()
+
+    response_prompt = f"""
+You are a helpful learning mentor. Maintain context of previous chats:
+{context_text}
+
+Current user question: "{topic}"
+Main subject: {mainSubject}
+
+Generate a 5-day roadmap OR detailed explanation, quiz, and mini project idea.
+"""
+
+    reply = safe_llm_invoke(response_prompt)
+    history.append(f"User: {topic}\nAssistant: {reply}")
+    memory_store[thread_id] = history
+    return {"reply": reply}
 
 def chitchat(state: Dict[str, Any]):
     msg = state.get("message", "")

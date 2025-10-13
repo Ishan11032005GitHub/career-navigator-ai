@@ -1,46 +1,113 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Career Coach</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>💼 Career Coach</title>
   <style>
-    body{font-family:system-ui;margin:24px;max-width:900px}
-    textarea,input{width:100%;margin:8px 0;padding:8px}
-    button{padding:10px 16px;margin-top:10px;border-radius:8px;border:1px solid #ddd;cursor:pointer}
-    .card{border:1px solid #eee;border-radius:12px;padding:12px;margin:12px 0;background:#fafafa}
+    body {font-family: system-ui; margin: 0; background: #f9fafb;}
+    #topbar {padding: 10px 16px; background: #0078ff; color: white; display: flex; justify-content: space-between; align-items: center;}
+    textarea {width: 100%; margin: 8px 0; padding: 8px; border-radius: 8px; border: 1px solid #ccc;}
+    button {padding: 10px 16px; border-radius: 8px; border: none; background: #0078ff; color: white; cursor: pointer;}
+    .card {border: 1px solid #eee; border-radius: 12px; padding: 12px; margin: 12px; background: #fff;}
+    input[type="file"] {margin: 8px 0;}
+    #upload-status {font-weight: bold; color: green;}
   </style>
 </head>
 <body>
-  <h1>💼 Career Coach</h1>
-  <textarea id="resume" placeholder="Paste your resume text"></textarea>
-  <textarea id="msg" placeholder="Ask about jobs, e.g. 'Which roles suit me?'"></textarea>
-  <br>
-  <button id="send">Send</button>
-  <div id="out"></div>
+  <div id="topbar">
+    <b>Career Coach</b>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <div style="padding:16px;">
+    <label><b>📄 Upload your resume (PDF only):</b></label><br>
+    <input type="file" id="resume" accept=".pdf"><br>
+    <span id="upload-status"></span><br>
+    <textarea id="msg" placeholder="Ask about jobs, e.g. 'Which roles suit me?'"></textarea>
+    <br>
+    <button id="send">Send</button>
+    <div id="out"></div>
+  </div>
 
 <script>
-async function chat(message){
-  const resume_text = document.getElementById("resume").value;
-  const r = await fetch("http://127.0.0.1:8000/api/career", {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ message, resume_text, job_posts: [] })
+const API = "http://127.0.0.1:8000/api";
+if (!localStorage.getItem("token")) {
+  alert("Please sign in first!");
+  window.location.href = "login.html";
+}
+
+let uploadedResume = null;
+
+// Upload resume to backend
+async function uploadResume(file) {
+  const formData = new FormData();
+  formData.append("resume", file);
+  const res = await fetch(`${API}/resume/upload`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` },
+    body: formData
+  });
+  const data = await res.json();
+  if (data.path) {
+    uploadedResume = data.path;
+    localStorage.setItem("resume_path", uploadedResume);
+  } else {
+    alert("Error uploading resume");
+  }
+}
+
+// Chat with AI
+async function chat(message) {
+  if (!uploadedResume) {
+    alert("Please upload your resume PDF first.");
+    return;
+  }
+  const r = await fetch(`${API}/career`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem("token")}`
+    },
+    body: JSON.stringify({ message, resume_path: uploadedResume, job_posts: [] })
   });
   const data = await r.json();
-  console.log("Career response:", data);
-
-  const replyText = data.reply ? data.reply.replace(/\n/g, "<br>") : "(no reply)";
   const el = document.createElement("div");
   el.className = "card";
-  el.innerHTML = `<b>Assistant:</b><br>${replyText}`;
+  el.innerHTML = `<b>Assistant:</b><br>${(data.reply || '').replace(/\n/g, "<br>")}`;
   document.getElementById("out").prepend(el);
 }
 
-document.getElementById("send").onclick = ()=>{
+// Handle file selection
+document.getElementById("resume").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.name.endsWith(".pdf")) {
+    alert("Only PDF files allowed!");
+    e.target.value = "";
+    return;
+  }
+
+  document.getElementById("upload-status").textContent = "⏳ Uploading...";
+  await uploadResume(file);
+  document.getElementById("upload-status").textContent = `✅ Uploaded: ${file.name}`;
+});
+
+// Restore uploaded resume if available
+uploadedResume = localStorage.getItem("resume_path");
+if (uploadedResume) {
+  document.getElementById("upload-status").textContent = "✅ Resume already uploaded.";
+}
+
+document.getElementById("send").onclick = () => {
   const m = document.getElementById("msg").value.trim();
-  if(m) chat(m);
+  if (m) chat(m);
 };
+
+function logout(){
+  localStorage.clear();
+  window.location.href = "login.html";
+}
 </script>
 </body>
 </html>
