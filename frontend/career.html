@@ -14,6 +14,7 @@
     #upload-status {font-weight: bold; color: green;}
     .delete-btn {position: absolute; top: 8px; right: 8px; background: none; border: none; color: #d00; font-size: 16px; cursor: pointer;}
     #clear-all {background: #dc3545; margin: 8px 0;}
+    .thinking {font-style: italic; color: #555; padding: 10px; margin: 8px; background: #fffbe6; border-radius: 8px; border: 1px solid #eee;}
   </style>
 </head>
 <body>
@@ -68,27 +69,47 @@ async function chat(message) {
     return;
   }
 
-  const res = await fetch(`${API}/career`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${localStorage.getItem("token")}`
-    },
-    body: JSON.stringify({ message, resume_path: uploadedResume, job_posts: [] })
-  });
+  const msgBox = document.getElementById("msg");
+  const sendBtn = document.getElementById("send");
+  msgBox.disabled = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Thinking...";
 
-  const data = await res.json();
-  const reply = data.reply || "No response.";
-  renderChat({ id: Date.now(), message, reply });
+  const thinkingEl = document.createElement("div");
+  thinkingEl.className = "thinking";
+  thinkingEl.textContent = "🤔 Thinking...";
+  document.getElementById("out").prepend(thinkingEl);
 
-  await fetch(`${API}/chat/save`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${localStorage.getItem("token")}`
-    },
-    body: JSON.stringify({ message, reply })
-  });
+  try {
+    const res = await fetch(`${API}/career`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem("token")}`
+      },
+      body: JSON.stringify({ message, resume_path: uploadedResume, job_posts: [] })
+    });
+
+    const data = await res.json();
+    const reply = data.reply || "No response.";
+    thinkingEl.remove();
+    renderChat({ id: Date.now(), message, reply });
+
+    await fetch(`${API}/chat/save`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem("token")}`
+      },
+      body: JSON.stringify({ message, reply })
+    });
+  } catch (e) {
+    thinkingEl.textContent = "⚠️ Network error: " + e.message;
+  } finally {
+    msgBox.disabled = false;
+    sendBtn.disabled = false;
+    sendBtn.textContent = "Send";
+  }
 }
 
 // Load history
@@ -148,7 +169,10 @@ document.getElementById("resume").addEventListener("change", async (e) => {
 
 document.getElementById("send").onclick = () => {
   const m = document.getElementById("msg").value.trim();
-  if (m) chat(m);
+  if (m) {
+    chat(m);
+    document.getElementById("msg").value = "";
+  }
 };
 
 function logout() {

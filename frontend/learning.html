@@ -18,6 +18,7 @@
     .delete-btn {position: absolute; right: 10px; top: 10px; background: none; border: none; color: red; font-size: 16px; cursor: pointer;}
     #history-controls {padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; background: #fff;}
     #clear-btn {background: red; color: white; border-radius: 6px; padding: 6px 12px; cursor: pointer; border: none;}
+    .thinking {font-style: italic; color: #555; padding: 10px; margin: 8px; background: #fffbe6; border-radius: 8px; border: 1px solid #eee;}
   </style>
 </head>
 <body>
@@ -51,13 +52,6 @@ localStorage.setItem("learning_thread", threadId);
 
 const chatContainer = document.getElementById("chat-container");
 
-function appendMessage(text, cls) {
-  const el = document.createElement("div");
-  el.className = `msg ${cls}`;
-  el.innerHTML = text.replace(/\n/g, "<br>");
-  chatContainer.prepend(el);
-}
-
 // =====================
 // Load Chat History
 // =====================
@@ -87,7 +81,17 @@ async function loadHistory() {
 // Send Chat
 // =====================
 async function chat(message) {
-  appendMessage(message, "user");
+  const msgBox = document.getElementById("msg");
+  const sendBtn = document.getElementById("send");
+  msgBox.disabled = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Thinking...";
+
+  const thinkingEl = document.createElement("div");
+  thinkingEl.className = "thinking";
+  thinkingEl.textContent = "🤔 Thinking...";
+  chatContainer.prepend(thinkingEl);
+
   try {
     const r = await fetch(`${API}/learning`, {
       method: "POST",
@@ -98,6 +102,8 @@ async function chat(message) {
       body: JSON.stringify({ message, thread_id: threadId })
     });
     const data = await r.json();
+    thinkingEl.remove();
+    appendMessage(message, "user");
     appendMessage(data.reply || "(no reply)", "bot");
 
     // Save chat
@@ -110,8 +116,19 @@ async function chat(message) {
       body: JSON.stringify({ message, reply: data.reply })
     });
   } catch (e) {
-    appendMessage("⚠️ Network error: " + e.message, "bot");
+    thinkingEl.textContent = "⚠️ Network error: " + e.message;
+  } finally {
+    msgBox.disabled = false;
+    sendBtn.disabled = false;
+    sendBtn.textContent = "Send";
   }
+}
+
+function appendMessage(text, cls) {
+  const el = document.createElement("div");
+  el.className = `msg ${cls}`;
+  el.innerHTML = text.replace(/\n/g, "<br>");
+  chatContainer.prepend(el);
 }
 
 // =====================
