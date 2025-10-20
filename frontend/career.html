@@ -1,0 +1,307 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>💼 Career Coach</title>
+  <link rel="stylesheet" href="career.css">
+  
+  <!-- ✅ PDF.js for local text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+</head>
+<body>
+  <div id="topbar">
+    <b>Career Coach</b>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <div style="padding:16px;">
+    <label><b>📄 Upload your resume (PDF only):</b></label><br>
+    <input type="file" id="resume" accept=".pdf"><br>
+    <span id="upload-status"></span><br>
+
+    <textarea id="msg" placeholder="Ask about jobs, e.g. 'Which roles suit me?'"></textarea>
+    <br>
+    <button id="send">Send</button>
+    <button id="clear-all">🗑 Clear All Chats</button>
+
+    <div id="out"></div>
+  </div>
+
+<script>
+// Your existing JavaScript code remains exactly the same
+const API = "http://54.234.102.196:8000/api";
+const BACKEND_BASE = "http://54.234.102.196:8000";
+
+if (!localStorage.getItem("token")) {
+  alert("Please sign in first!");
+  window.location.href = "login.html";
+}
+
+let uploadedResume = localStorage.getItem("resume_text");
+
+// ✅ Extract text from PDF using pdf.js
+async function extractPdfText(file) {
+  const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
+  let text = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item => item.str).join(" ") + "\n";
+  }
+  return text;
+}
+
+// ✅ Handle file upload + extraction
+document.getElementById("resume").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.name.endsWith(".pdf")) {
+    alert("Only PDF files allowed!");
+    return;
+  }
+
+  document.getElementById("upload-status").textContent = "⏳ Extracting text...";
+  const text = await extractPdfText(file);
+
+  if (text.trim().length < 50) {
+    alert("⚠️ Could not extract enough text from this PDF.");
+    document.getElementById("upload-status").textContent = "";
+    return;
+  }
+
+  localStorage.setItem("resume_text", text);
+  uploadedResume = text;
+  document.getElementById("upload-status").textContent = "✅ Resume text extracted.";
+});
+
+// ✅ SIMPLIFIED: Convert relative URLs to absolute URLs
+function convertUrlsToAbsolute(html) {
+  if (!html) return html;
+  
+  // Simple replacement for all relative URLs starting with /
+  return html.replace(
+    /(href|src)=['"](\/[^'"]*)['"]/g,
+    `$1="${BACKEND_BASE}$2"`
+  );
+}
+
+// ✅ Chat with backend AI - SIMPLIFIED VERSION
+async function chat(message) {
+  const resumeText = localStorage.getItem("resume_text") || "";
+  if (!resumeText) {
+    alert("Please upload your resume first.");
+    return;
+  }
+
+  const msgBox = document.getElementById("msg");
+  const sendBtn = document.getElementById("send");
+  msgBox.disabled = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Thinking...";
+
+  const thinkingEl = document.createElement("div");
+  thinkingEl.className = "thinking";
+  thinkingEl.textContent = "🤔 Thinking...";
+  document.getElementById("out").prepend(thinkingEl);
+
+  try {
+    const res = await fetch(`${API}/career`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem("token")}`
+      },
+      body: JSON.stringify({
+        message,
+        resume_text: resumeText,
+        job_posts: []
+      })
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
+    const data = await res.json();
+    console.log("Backend response:", data);
+
+    const reply = data.reply || "No response.";
+    thinkingEl.remove();
+
+    // ✅ SIMPLIFIED URL CONVERSION
+    const processedReply = convertUrlsToAbsolute(reply);
+    console.log("✅ Processed reply with absolute URLs");
+
+    renderChat({
+      id: Date.now(),
+      message,
+      reply: processedReply
+    });
+
+    // Save the original reply to DB (without URL conversion)
+    await fetch(`${API}/career/chat/save`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", 
+        "Authorization": `Bearer ${localStorage.getItem("token")}`
+      },
+      body: JSON.stringify({ message, reply: data.reply }) // Use original reply
+    });
+  } catch (e) {
+    console.error("⚠️ Network error:", e);
+    thinkingEl.textContent = "⚠️ Network error: " + e.message;
+  } finally {
+    msgBox.disabled = false;
+    sendBtn.disabled = false;
+    sendBtn.textContent = "Send";
+  }
+}
+
+// ✅ Load chat history
+async function loadHistory() {
+  try {
+    const res = await fetch(`${API}/career/chat/history`, {
+      headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+    });
+    
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    
+    const data = await res.json();
+    const chats = data.history || [];
+    document.getElementById("out").innerHTML = "";
+    chats.forEach(chat => {
+      // Convert URLs in historical chats too
+      const processedReply = convertUrlsToAbsolute(chat.reply);
+      renderChat({
+        ...chat,
+        reply: processedReply
+      });
+    });
+  } catch (e) {
+    console.error("Failed to load chat history:", e);
+  }
+}
+
+// ✅ Render chat bubble - SIMPLIFIED
+function renderChat(chat) {
+  const div = document.createElement("div");
+  div.className = "card";
+  
+  div.innerHTML = `
+    <button class="delete-btn" onclick="deleteChat(${chat.id}, this)">✖</button>
+    <b>You:</b> ${escapeHtml(chat.message)}<br><br>
+    <b>Assistant:</b><br>${chat.reply}
+  `;
+  
+  document.getElementById("out").prepend(div);
+  
+  // Add error handling for iframes
+  setTimeout(() => {
+    const iframes = div.querySelectorAll('iframe');
+    iframes.forEach(iframe => {
+      iframe.onerror = function() {
+        console.log(`Iframe failed to load: ${iframe.src}`);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'pdf-error';
+        errorDiv.innerHTML = `
+          <strong>⚠️ PDF Preview Failed to Load</strong><br>
+          <a href="${iframe.src}" target="_blank">Click here to open PDF in new tab</a>
+        `;
+        iframe.parentNode.insertBefore(errorDiv, iframe);
+        iframe.style.display = 'none';
+      };
+    });
+  }, 100);
+}
+
+// ✅ Utility function to escape HTML
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ✅ Delete individual chat
+async function deleteChat(id, el) {
+  if (!confirm("Delete this chat?")) return;
+  
+  try {
+    const res = await fetch(`${API}/career/chat/delete/${id}`, {
+      method: "DELETE",
+      headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+    });
+    
+    if (res.ok) {
+      el.parentElement.remove();
+    } else {
+      alert("Failed to delete chat");
+    }
+  } catch (e) {
+    console.error("Delete error:", e);
+    alert("Error deleting chat");
+  }
+}
+
+// ✅ Clear all chats
+async function clearAll() {
+  if (!confirm("Delete all chats? This cannot be undone.")) return;
+  
+  try {
+    const res = await fetch(`${API}/career/chat/clear`, {
+      method: "DELETE",
+      headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+    });
+    
+    if (res.ok) {
+      document.getElementById("out").innerHTML = "";
+    } else {
+      alert("Failed to clear chats");
+    }
+  } catch (e) {
+    console.error("Clear error:", e);
+    alert("Error clearing chats");
+  }
+}
+
+// ✅ Send message
+document.getElementById("send").onclick = () => {
+  const m = document.getElementById("msg").value.trim();
+  if (m) {
+    chat(m);
+    document.getElementById("msg").value = "";
+  }
+};
+
+// ✅ Enter key to send message
+document.getElementById("msg").addEventListener("keypress", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    document.getElementById("send").click();
+  }
+});
+
+// ✅ Logout
+function logout() {
+  if (confirm("Are you sure you want to logout?")) {
+    localStorage.clear();
+    window.location.href = "login.html";
+  }
+}
+
+// ✅ On load
+document.addEventListener("DOMContentLoaded", () => {
+  if (uploadedResume) {
+    document.getElementById("upload-status").textContent = "✅ Resume already extracted.";
+  }
+  
+  // Load chat history
+  loadHistory();
+  
+  console.log("🚀 Career Coach loaded successfully!");
+});
+</script>
+</body>
+</html>

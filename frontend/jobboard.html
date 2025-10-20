@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💼 Career Navigator AI - Job Board</title>
+<link rel="stylesheet" href="jobboard.css">
+<style>
+  /* body{font-family:system-ui;background:#f8fafc;margin:0;padding:20px}
+  h1{text-align:center}
+  section{background:white;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+  button{cursor:pointer;background:#007bff;color:white;border:none;padding:8px 16px;border-radius:8px;margin-top:6px}
+  button:hover{background:#0056b3}
+  input,textarea{width:100%;padding:10px;margin:5px 0;border:1px solid #ccc;border-radius:6px}
+  .job{border-bottom:1px solid #eee;padding:10px 0}
+  .job:last-child{border-bottom:none} */
+</style>
+</head>
+<body>
+<h1>💼 Career Navigator AI - Job Board</h1>
+
+<section>
+  <h2>Available Jobs</h2>
+  <div id="jobs">Loading jobs...</div>
+</section>
+
+<section>
+  <h2>Saved Jobs</h2>
+  <div id="saved-jobs">Login to view saved jobs.</div>
+</section>
+
+<section>
+  <h2>My Applications</h2>
+  <div id="applications">Login to view your applications.</div>
+</section>
+
+<section>
+  <h2>Applications Received (for My Jobs)</h2>
+  <div id="received">Login to view applications received for jobs you posted.</div>
+</section>
+
+<section>
+  <h2>Add a New Job</h2>
+  <input id="title" placeholder="Job Title">
+  <input id="company" placeholder="Company Name">
+  <input id="location" placeholder="Location">
+  <textarea id="description" placeholder="Job Description"></textarea>
+  <input id="link" placeholder="Job Link (optional)">
+  <button onclick="addJob()">➕ Add Job</button>
+</section>
+
+<script>
+const API = "http://54.234.102.196:8000/api";
+const token = localStorage.getItem("token");
+
+// ========== LOAD ALL JOBS ==========
+async function loadJobs(){
+  const res = await fetch(`${API}/jobs`);
+  const data = await res.json();
+  const jobsDiv = document.getElementById("jobs");
+  if(!data.jobs.length){ jobsDiv.innerHTML = "No jobs yet."; return; }
+  jobsDiv.innerHTML = data.jobs.map(j=>`
+    <div class="job">
+      <b>${j.title}</b> at <i>${j.company}</i><br>
+      📍 ${j.location || "Remote"}<br>
+      ${j.description || ""}<br>
+      ${j.link ? `<a href="${j.link}" target="_blank">Apply Link</a><br>` : ""}
+      ${token ? `
+        <form onsubmit="applyToJob(event, ${j.id})" enctype="multipart/form-data">
+          <input type="file" name="resume" accept=".pdf" required>
+          <button type="submit">📄 Apply</button>
+        </form>
+        <button onclick="saveJob(${j.id})">💾 Save</button>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+// ========== ADD NEW JOB ==========
+async function addJob(){
+  if(!token){ alert("Please login first!"); return; }
+  const job = {
+    title:document.getElementById("title").value,
+    company:document.getElementById("company").value,
+    location:document.getElementById("location").value,
+    description:document.getElementById("description").value,
+    link:document.getElementById("link").value
+  };
+  const res = await fetch(`${API}/jobs/add`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body:JSON.stringify(job)
+  });
+  const data = await res.json();
+  alert(data.msg || "Job added!");
+  loadJobs();
+  if(token){ loadReceived(); } // refresh received apps UI if you’re a poster
+}
+
+// ========== APPLY TO A JOB ==========
+async function applyToJob(e, jobId){
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData();
+  formData.append("job_id", jobId);
+  formData.append("resume", form.resume.files[0]);
+  const res = await fetch(`${API}/jobs/apply`, {
+    method: "POST",
+    headers: {"Authorization": `Bearer ${token}`},
+    body: formData
+  });
+  const data = await res.json();
+  alert(data.msg || "Application submitted!");
+  loadApplications();
+}
+
+// ========== SAVE JOB ==========
+async function saveJob(id){
+  const res = await fetch(`${API}/jobs/save`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body:JSON.stringify({job_id:id})
+  });
+  const data = await res.json();
+  alert(data.msg || "Saved!");
+  loadSavedJobs();
+}
+
+// ========== LOAD SAVED JOBS ==========
+async function loadSavedJobs(){
+  if(!token) return;
+  const res = await fetch(`${API}/jobs/saved`,{
+    headers:{"Authorization":`Bearer ${token}`}
+  });
+  const data = await res.json();
+  const div = document.getElementById("saved-jobs");
+  if(!data.saved_jobs?.length){ div.innerHTML="No saved jobs yet."; return; }
+  div.innerHTML = data.saved_jobs.map(j=>`
+    <div class="job">
+      <b>${j.title}</b> - ${j.company}<br>${j.location || "Remote"}
+    </div>
+  `).join('');
+}
+
+// ========== LOAD APPLICATIONS (MY OWN) ==========
+async function loadApplications(){
+  if(!token) return;
+  const res = await fetch(`${API}/jobs/applications`,{
+    headers:{"Authorization":`Bearer ${token}`}
+  });
+  const data = await res.json();
+  const div = document.getElementById("applications");
+  if(!data.applications?.length){ div.innerHTML="No applications yet."; return; }
+  div.innerHTML = data.applications.map(a=>`
+    <div class="job">
+      <b>${a.title}</b> - ${a.company}<br>${a.location || "Remote"}<br>
+      📄 <a href="http://54.234.102.196:8000${a.resume_path}" target="_blank">View Resume</a>
+    </div>
+  `).join('');
+}
+
+// ========== LOAD RECEIVED APPLICATIONS (FOR JOBS I POSTED) ==========
+async function loadReceived(){
+  if(!token) return;
+  const res = await fetch(`${API}/jobs/received`,{
+    headers:{"Authorization":`Bearer ${token}`}
+  });
+  const data = await res.json();
+  const div = document.getElementById("received");
+  if(!data.received_applications?.length){ div.innerHTML="No applications received yet."; return; }
+  div.innerHTML = data.received_applications.map(a=>`
+    <div class="job">
+      <b>${a.job_title}</b> - ${a.company} (${a.location || "Remote"})<br>
+      👤 ${a.applicant_name} &lt;${a.applicant_email}&gt;<br>
+      📄 <a href="http://54.234.102.196:8000${a.resume_path}" target="_blank">View Resume</a><br>
+      🕒 ${a.applied_at}
+    </div>
+  `).join('');
+}
+
+// ========== AUTO LOAD ==========
+loadJobs();
+if(token){ loadSavedJobs(); loadApplications(); loadReceived(); }
+</script>
+</body>
+</html>

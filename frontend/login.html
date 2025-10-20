@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login - Career Navigator AI</title>
+  <link rel="stylesheet" href="login.css">
+  <style>
+    /* body {
+      font-family: system-ui, Segoe UI, Roboto;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100vh; background: #f4f6f8;
+    }
+    .box {
+      background: white; padding: 30px;
+      border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      width: 320px; text-align: center;
+    }
+    input {
+      width: 90%; padding: 10px; margin: 8px 0;
+      border-radius: 8px; border: 1px solid #ccc;
+    }
+    button {
+      padding: 10px 20px; border: none;
+      border-radius: 8px; background: #0078ff;
+      color: white; cursor: pointer; font-size: 16px;
+      margin-top: 10px;
+    }
+    .msg { margin-top: 10px; color: red; font-size: 0.9em; }
+    a { color: #0078ff; text-decoration: none; font-size: 14px; } */
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Sign In</h2>
+    <input id="email" placeholder="Email" />
+    <input id="pass" type="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <p><a href="forgot.html">Forgot Password?</a></p>
+    <p><a href="signup.html">Don't have an account? Sign up</a></p>
+    <p class="msg" id="msg"></p>
+  </div>
+
+<script>
+async function login(){
+  const email = document.getElementById("email").value.trim();
+  const pass  = document.getElementById("pass").value.trim();
+  if(!email || !pass){ document.getElementById("msg").innerText = "Please fill in both fields."; return; }
+
+  try {
+    const r = await fetch("http://54.234.102.196:8000/api/login", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, password: pass })
+    });
+    const d = await r.json();
+
+    if (r.ok && d.token) {
+      localStorage.setItem("token", d.token);
+      localStorage.setItem("username", d.username);
+      window.location.href = "dashboard.html";
+    } else {
+      document.getElementById("msg").innerText = d.detail || "Login failed.";
+    }
+  } catch (err) {
+    document.getElementById("msg").innerText = "⚠️ Server error: " + err.message;
+  }
+}
+</script>
+</body>
+</html>

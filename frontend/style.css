@@ -1,0 +1,118 @@
+/* ======== Global Reset ======== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Poppins', system-ui, sans-serif;
+  background: radial-gradient(circle at 20% 20%, #0f0123, #04010a 80%);
+  color: #e5e7eb;
+  text-align: center;
+  padding: 80px 20px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ======== Headings ======== */
+h1 {
+  font-size: 2.8em;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 15px #8a2be2, 0 0 30px #0078ff;
+  margin-bottom: 20px;
+}
+
+/* ======== Paragraph ======== */
+p {
+  color: #c7c9d1;
+  font-size: 1.05em;
+  line-height: 1.6;
+  max-width: 600px;
+  margin: 0 auto 40px;
+}
+
+/* ======== Buttons ======== */
+.btn {
+  display: block;
+  width: 80%;
+  max-width: 280px;
+  margin: 15px auto;
+  padding: 14px 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  background: linear-gradient(90deg, #6a00f4, #0078ff);
+  box-shadow: 0 0 15px rgba(138, 43, 226, 0.6), 0 0 25px rgba(0, 120, 255, 0.3);
+}
+
+.btn:hover {
+  background: transparent;
+  color: #00bfff;
+  border: 2px solid #00bfff;
+  box-shadow: 0 0 25px #00bfff, 0 0 50px rgba(0, 191, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* ======== Glow Animation ======== */
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 10px #6a00f4, 0 0 20px #0078ff;
+  }
+  50% {
+    box-shadow: 0 0 20px #0078ff, 0 0 40px #6a00f4;
+  }
+  100% {
+    box-shadow: 0 0 10px #6a00f4, 0 0 20px #0078ff;
+  }
+}
+
+/* ======== Floating Glow Elements ======== */
+body::before,
+body::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #6a00f4, transparent 70%);
+  animation: float 10s infinite alternate ease-in-out;
+  opacity: 0.15;
+}
+
+body::before {
+  width: 250px;
+  height: 250px;
+  top: 10%;
+  left: 15%;
+}
+
+body::after {
+  width: 350px;
+  height: 350px;
+  bottom: 5%;
+  right: 10%;
+}
+
+@keyframes float {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-20px);
+  }
+}
+
+/* ======== Responsive ======== */
+@media (max-width: 600px) {
+  h1 {
+    font-size: 2.2em;
+  }
+  .btn {
+    width: 100%;
+  }
+}

@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Forgot Password</title>
+  <link rel="stylesheet" href="forgot.css">
+  <style>
+    /* body{font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;background:#f4f6f8}
+    .box{background:white;padding:30px;border-radius:12px;width:320px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.1)}
+    input{width:90%;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #ccc}
+    button{padding:10px 20px;border:none;border-radius:8px;background:#0078ff;color:white;cursor:pointer;font-size:16px;margin-top:10px}
+    .msg{margin-top:10px;color:#333;font-size:0.9em;word-wrap:break-word} */
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Forgot Password</h2>
+    <input id="email" placeholder="Your registered email">
+    <button onclick="forgot()">Request Reset</button>
+    <input id="token" placeholder="Paste reset token here">
+    <input id="newpass" type="password" placeholder="New password">
+    <button onclick="resetPass()">Reset Password</button>
+    <p class="msg" id="msg"></p>
+  </div>
+
+<script>
+async function forgot() {
+  const email = document.getElementById("email").value;
+  const r = await fetch("http://54.234.102.196:8000/api/forgot", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email })
+  });
+  const d = await r.json();
+  document.getElementById("msg").innerText = d.msg || d.detail;
+}
+
+async function resetPass(){
+  const token=document.getElementById("token").value;
+  const new_password=document.getElementById("newpass").value;
+  const r=await fetch("http://54.234.102.196:8000/api/reset",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({token,new_password})
+  });
+  const d=await r.json();
+  document.getElementById("msg").innerText=d.msg || d.detail;
+}
+</script>
+</body>
+</html>

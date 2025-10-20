@@ -1,0 +1,177 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>📘 Learning Buddy</title>
+  <link rel="stylesheet" href="learning.css">
+</head>
+<body>
+  <div id="topbar">
+    <b>Learning Buddy</b>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <div id="history-controls">
+    <b>Chat History</b>
+    <button id="clear-btn">🗑️ Clear All</button>
+  </div>
+
+  <div id="chat-container"></div>
+
+  <div id="input-area">
+    <textarea id="msg" placeholder="Ask about any topic..."></textarea>
+    <button id="send">Send</button>
+  </div>
+
+<script>
+if (!localStorage.getItem("token")) {
+  alert("Please sign in first!");
+  window.location.href = "login.html";
+}
+
+const API = "http://127.0.0.1:8000/api";
+const token = localStorage.getItem("token");
+const threadId = localStorage.getItem("learning_thread") || crypto.randomUUID();
+localStorage.setItem("learning_thread", threadId);
+
+const chatContainer = document.getElementById("chat-container");
+
+// =====================
+// Load Chat History
+// =====================
+async function loadHistory() {
+  try {
+    const res = await fetch(`${API}/learning/chat/history`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const data = await res.json();
+    chatContainer.innerHTML = "";
+    (data.history || []).forEach(item => {
+      const div = document.createElement("div");
+      div.className = "chat-item";
+      div.innerHTML = `
+        <div><b>You:</b> ${item.message}</div>
+        <div><b>Assistant:</b> ${item.reply}</div>
+        <button class="delete-btn" onclick="deleteChat(${item.id})">✖</button>
+      `;
+      chatContainer.prepend(div);
+    });
+  } catch (e) {
+    console.error("Error loading history:", e);
+  }
+}
+
+// =====================
+// Send Chat
+// =====================
+async function chat(message) {
+  const msgBox = document.getElementById("msg");
+  const sendBtn = document.getElementById("send");
+  msgBox.disabled = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Thinking...";
+
+  const thinkingEl = document.createElement("div");
+  thinkingEl.className = "thinking";
+  thinkingEl.textContent = "🤔 Thinking...";
+  chatContainer.prepend(thinkingEl);
+
+  try {
+    const r = await fetch(`${API}/learning`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ message, thread_id: threadId })
+    });
+    const data = await r.json();
+    thinkingEl.remove();
+    appendMessage(message, "user");
+    appendMessage(data.reply || "(no reply)", "bot");
+
+    await fetch(`${API}/learning/chat/save`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ message, reply: data.reply })
+    });
+  } catch (e) {
+    thinkingEl.textContent = "⚠️ Network error: " + e.message;
+  } finally {
+    msgBox.disabled = false;
+    sendBtn.disabled = false;
+    sendBtn.textContent = "Send";
+  }
+}
+
+function appendMessage(text, cls) {
+  const el = document.createElement("div");
+  el.className = `msg ${cls}`;
+  el.innerHTML = text.replace(/\n/g, "<br>");
+  chatContainer.prepend(el);
+}
+
+// =====================
+// Delete single chat
+// =====================
+async function deleteChat(id) {
+  if (!confirm("Delete this chat?")) return;
+  await fetch(`${API}/learning/chat/delete/${id}`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  await loadHistory();
+}
+
+// =====================
+// Clear all chats
+// =====================
+document.getElementById("clear-btn").onclick = async () => {
+  if (!confirm("Delete all chat history?")) return;
+  await fetch(`${API}/learning/chat/clear`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  await loadHistory();
+};
+
+// =====================
+// Send message handler
+// =====================
+document.getElementById("send").onclick = () => {
+  const m = document.getElementById("msg").value.trim();
+  if (m) {
+    chat(m);
+    document.getElementById("msg").value = "";
+  }
+};
+
+// =====================
+// Enter key handler
+// =====================
+document.getElementById("msg").addEventListener("keypress", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    document.getElementById("send").click();
+  }
+});
+
+function logout(){
+  localStorage.clear();
+  window.location.href = "login.html";
+}
+
+// =====================
+// Initialize
+// =====================
+document.addEventListener("DOMContentLoaded", () => {
+  loadHistory();
+  console.log("🚀 Learning Buddy loaded successfully!");
+});
+</script>
+</body>
+</html>

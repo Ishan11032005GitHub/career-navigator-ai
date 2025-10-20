@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign Up - Career Navigator AI</title>
+  <link rel="stylesheet" href="signup.css">
+  <style>
+    /* body { font-family: system-ui; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f6f8; }
+    .box { background: white; padding: 30px; border-radius: 12px; width: 320px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    input { width: 90%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #ccc; }
+    button { padding: 10px 20px; border: none; border-radius: 8px; background: #0078ff; color: white; cursor: pointer; font-size: 16px; margin-top: 10px; }
+    .msg { margin-top: 10px; color: red; font-size: 0.9em; } */
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Create Account</h2>
+    <input id="email" placeholder="Email" />
+    <input id="user" placeholder="Username" />
+    <input id="pass" type="password" placeholder="Password" />
+    <button onclick="signup()">Sign Up</button>
+    <p class="msg" id="msg"></p>
+    <p><a href="login.html">Already have an account? Sign in</a></p>
+  </div>
+
+<script>
+async function signup(){
+  const email=document.getElementById("email").value.trim();
+  const username=document.getElementById("user").value.trim();
+  const password=document.getElementById("pass").value.trim();
+  if(!email || !username || !password){ document.getElementById("msg").innerText="Fill all fields."; return; }
+
+  const r=await fetch("http://54.234.102.196:8000/api/signup",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({email,username,password})
+  });
+  const d=await r.json();
+  if(r.ok){ alert("Signup successful! Please login."); location.href="login.html"; }
+  else document.getElementById("msg").innerText=d.detail || "Signup failed.";
+}
+</script>
+</body>
+</html>

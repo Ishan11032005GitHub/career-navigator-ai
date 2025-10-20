@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard - Career Navigator AI</title>
+  <link rel="stylesheet" href=dashboard.css>
+  <style>
+    /* body {
+      text-align: center;
+      font-family: system-ui;
+      background: #f8fafc;
+      padding: 60px;
+    }
+    h1 {
+      font-size: 2em;
+      color: #111;
+    }
+    button {
+      display: block;
+      margin: 20px auto;
+      width: 80%;
+      max-width: 280px;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      background: #fff;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s ease;
+    }
+    button:hover {
+      background: #0078ff;
+      color: white;
+      border-color: #0078ff;
+    } */
+  </style>
+</head>
+<body>
+  <h1>Welcome, <span id="user"></span> 👋</h1>
+
+  <button onclick="location.href='learning.html'">📘 Learning Buddy</button>
+  <button onclick="location.href='career.html'">💼 Career Coach</button>
+  <button onclick="location.href='jobboard.html'">🧾 Job Board</button> <!-- ✅ Added Job Board button -->
+  <button onclick="logout()">Logout</button>
+
+  <script>
+    // Check authentication
+    if (!localStorage.getItem("token")) {
+      window.location.href = "login.html";
+    }
+
+    // Show username
+    document.getElementById("user").innerText = localStorage.getItem("username") || "User";
+
+    // Logout
+    function logout() {
+      localStorage.clear();
+      window.location.href = "login.html";
+    }
+  </script>
+</body>
+</html>
