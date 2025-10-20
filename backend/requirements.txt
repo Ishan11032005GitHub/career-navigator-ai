@@ -11,7 +11,7 @@ sqlalchemy==2.0.35
 
 # ---------- Auth & Security ----------
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4  # optional but useful if you later replace SHA256
+passlib[bcrypt]==1.7.4
 
 # ---------- NLP & Resume Analysis ----------
 spacy==3.7.4
