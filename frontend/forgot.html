@@ -27,7 +27,7 @@
 <script>
 async function forgot() {
   const email = document.getElementById("email").value;
-  const r = await fetch("http://54.234.102.196:8000/api/forgot", {
+  const r = await fetch("https://career-navigator-ai-1.onrender.com/api/forgot", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email })
@@ -39,7 +39,7 @@ async function forgot() {
 async function resetPass(){
   const token=document.getElementById("token").value;
   const new_password=document.getElementById("newpass").value;
-  const r=await fetch("http://54.234.102.196:8000/api/reset",{
+  const r=await fetch("https://career-navigator-ai-1.onrender.com/api/reset",{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({token,new_password})
   });

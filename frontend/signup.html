@@ -31,7 +31,7 @@ async function signup(){
   const password=document.getElementById("pass").value.trim();
   if(!email || !username || !password){ document.getElementById("msg").innerText="Fill all fields."; return; }
 
-  const r=await fetch("http://54.234.102.196:8000/api/signup",{
+  const r=await fetch("https://career-navigator-ai-1.onrender.com/api/signup",{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({email,username,password})
   });
