@@ -17,12 +17,16 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# ✅ Manually add MiKTeX path to system PATH for FastAPI subprocess calls
-miktex_path = r"C:\Program Files\MiKTeX\miktex\bin\x64"
-if miktex_path not in os.environ["PATH"]:
-    os.environ["PATH"] = miktex_path + os.pathsep + os.environ["PATH"]
-
-print("[INFO] MiKTeX path added to PATH:", miktex_path)
+# ==========================================================
+# ✅ MiKTeX PATH (only for local Windows dev, skip on Render)
+# ==========================================================
+if os.name == "nt":  # Windows only
+    miktex_path = r"C:\Program Files\MiKTeX\miktex\bin\x64"
+    if miktex_path not in os.environ["PATH"]:
+        os.environ["PATH"] = miktex_path + os.pathsep + os.environ["PATH"]
+    print("[INFO] MiKTeX path added to PATH:", miktex_path)
+else:
+    print("[INFO] Running on Linux container — skipping MiKTeX PATH setup.")
 
 class SignupRequest(BaseModel):
     email: EmailStr
