@@ -1,23 +1,28 @@
 # ---------- Base Image ----------
-FROM python:3.11-slim
+FROM ubuntu:22.04
 
-# ---------- Set Working Directory ----------
+# ---------- System Setup ----------
+RUN apt-get update && apt-get install -y \
+    curl git python3 python3-pip texlive-latex-base texlive-latex-recommended \
+    texlive-fonts-recommended texlive-latex-extra build-essential wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------- Install Ollama ----------
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# ---------- Working Directory ----------
 WORKDIR /app
 COPY . .
 
-# ---------- Install System Dependencies ----------
-# texlive packages → required for LaTeX PDF generation
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    texlive-latex-base texlive-latex-recommended texlive-fonts-recommended texlive-latex-extra \
-    build-essential python3-dev git wget curl \
-    && pip install --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -r requirements.txt \
-    && apt-get purge -y build-essential python3-dev \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/* /root/.cache
+# ---------- Install Python Dependencies ----------
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ---------- Pre-pull model (adjust model name) ----------
+RUN ollama pull gemma3:4b || true
 
 # ---------- Expose Port ----------
 EXPOSE 8000
+EXPOSE 11434
 
-# ---------- Run the App ----------
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# ---------- Run Ollama + FastAPI ----------
+CMD bash -c "ollama serve & sleep 5 && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
