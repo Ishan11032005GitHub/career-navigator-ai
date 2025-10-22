@@ -50,16 +50,19 @@ app.add_middleware(
 )
 
 # ==========================================================
-# STATIC FILES - FIXED PATH HANDLING
+# STATIC FILES - CROSS-PLATFORM PATH HANDLING (WORKS LOCALLY & ON RENDER)
 # ==========================================================
-DATA_ROOT = os.path.abspath(r"C:\career_ai_data")
+if os.name == "nt":  # Windows local dev
+    DATA_ROOT = os.path.abspath(r"C:\career_ai_data")
+else:  # Linux / Render container
+    DATA_ROOT = os.path.abspath("/app/data")
+
 UPLOAD_DIR = os.path.join(DATA_ROOT, "uploads")
 GENERATED_DIR = os.path.join(DATA_ROOT, "generated_resumes")
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(GENERATED_DIR, exist_ok=True)
 
-# Mount static directories
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/generated_resumes", StaticFiles(directory=GENERATED_DIR), name="generated_resumes")
 
