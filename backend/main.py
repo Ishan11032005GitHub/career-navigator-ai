@@ -44,13 +44,19 @@ load_dotenv()
 
 app = FastAPI(title="Career Navigator AI")
 
+origins = [
+    "https://ishan11032005github.github.io",
+    "https://career-navigator-ai-1.onrender.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,       # Only allow your actual frontends
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition"],
 )
 
 # ==========================================================
