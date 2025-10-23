@@ -35,4 +35,5 @@ ENV OLLAMA_HOST=0.0.0.0:11434
 ENV PYTHONUNBUFFERED=1
 
 # ---------- Run Ollama + FastAPI ----------
-CMD bash -c "ollama serve & sleep 5 && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
+CMD bash -c "ollama serve & sleep 8 && ollama pull gemma3:4b && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
+
