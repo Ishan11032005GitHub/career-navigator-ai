@@ -1,11 +1,17 @@
 # ---------- Base Image ----------
 FROM ubuntu:22.04
 
+# ---------- Prevent tzdata prompts ----------
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+
 # ---------- System Setup ----------
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     curl git python3 python3-pip texlive-latex-base texlive-latex-recommended \
-    texlive-fonts-recommended texlive-latex-extra build-essential wget \
+    texlive-fonts-recommended texlive-latex-extra build-essential wget tzdata \
     && rm -rf /var/lib/apt/lists/*
+
 
 # ---------- Install Ollama ----------
 RUN curl -fsSL https://ollama.com/install.sh | sh
