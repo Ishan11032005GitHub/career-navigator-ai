@@ -16,7 +16,7 @@ RUN apt-get update && \
 RUN curl -fsSL https://ollama.com/install.sh | sh
 
 # ---------- Working Directory ----------
-WORKDIR /app
+WORKDIR /app/backend
 COPY . .
 
 # ---------- Install Python Dependencies ----------
