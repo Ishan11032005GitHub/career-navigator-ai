@@ -19,6 +19,9 @@ RUN curl -fsSL https://ollama.com/install.sh | sh
 WORKDIR /app
 COPY . .
 
+# ---------- Verify Copy ----------
+RUN ls -l /app && head -n 10 /app/main.py
+
 # ---------- Install Python Dependencies ----------
 RUN pip install --no-cache-dir -r requirements.txt
 
