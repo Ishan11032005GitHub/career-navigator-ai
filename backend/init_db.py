@@ -1,3 +1,5 @@
+#This is init_db.py
+
 import sqlite3
 import os
 
